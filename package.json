@@ -1,0 +1,21 @@
+{
+	"name": "replaceDoc",
+	"version": "0.0.1",
+	"description": "Replace all JsTestDriver DOC comments to use a simple javascript function to inject HTML in pages.",
+	"main": "package.json.js",
+	"scripts": {
+		"test": "mocha test/replace.js"
+	},
+	"repository": "",
+	"keywords": [
+		"jstd",
+		"jstestdriver",
+		"doc"
+	],
+	"bin": { "replaceDOC": "./bin/replaceDOC"},
+	"dependencies": {
+		"commander": "*"
+	},
+	"author": "Tomas Corral",
+	"license": "MIT"
+}

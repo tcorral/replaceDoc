@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var program = require('commander' ),
+	fs = require('fs' ),
+	path = require('path'),
+	sKarmaFilePath,
+	sRootPath,
+	nReplacements = 0,
+	nSavedFiles = 0;
+
+program
+  .version('0.0.1')
+  .option('-c, --config', 'Path to your karma config file', 'karma.conf.js')
+  .option('-r, --root', 'Path to your environment core3 or core3dev', 'C:\\code\\core3dev')
+  .parse(process.argv);
+
+if(program.config && program.root)
+{
+	sKarmaFilePath = path.resolve(program.args[0]);
+	sRootPath = path.resolve(program.args[1]);
+
+    // Helper functions to modify the content in files.
+    function fixQuotesAndRemoveLineBreaks(match, p1) {
+    	nReplacements++;
+    	var data1 = p1.replace(/\"/g,'\\\"').replace(/\'/g, "\\'");
+    	return "injectHTML('" + trim(data1.replace(/\r?\n|\r/gim, ' ')) + "');";
+    }
+    function trim(sHTML) {
+    	return sHTML.replace(/(^\s*)|(\s*$)/g,'');
+    }
+
+    // This lines parse the karma config file to get all the test files (is in this file where the replacement will be done)
+    fs.readFile(sKarmaFilePath, 'utf8', function(err, data) {
+    	if(err){
+    		throw err;
+    	}
+    	var aMatches, sFiles, aFiles, aTestFiles = [], nFile, nLenFiles;
+
+    	// Get the files content
+    	aMatches = /(?:files\s?=\s?\[)([\s\S]*?)(?:\];)/gim.exec(data);
+
+    	// Set the content to be one string
+    	sFiles = aMatches[1].replace(/\r?\n|\r/gim, "").replace(/\"/g, "").replace(/\'/g, "").replace(/\s*/g, "");
+    	// Get an array with all the files
+    	aFiles = sFiles.split(',');
+    	// Remove the adapter files.
+    	aFiles = aFiles.slice(2);
+    	// Loop over all the files but only the urls that start with test will be added.
+    	nFile = aFiles.length -1;
+    	while(nFile)
+    	{
+    		if(aFiles[nFile].indexOf('Test.js') === aFiles[nFile].length - 7)
+    		{
+    			aTestFiles.push(aFiles[nFile]);
+    		}
+    		nFile--;
+    	}
+    	// Loop over all the test files and replace the DOC comments by injectHTML function.
+    	nLenFiles = aTestFiles.length;
+    	for(nFile = 0; nFile < nLenFiles; nFile++) {
+    		(function(sFilePath){
+    			// Read the file.
+    			fs.readFile(sFilePath, 'utf8', function(err, data) {
+    				if (err){
+    					throw err;
+    				}
+    				// Replace the DOC comments by injectHTML function.
+    				var data1 = data.replace(/(?:\/\*\:DOC\s*?\+(?:\s*?)=)([\s\S]*?)(?:\*\/)/gim, "injectHTML('$1');")
+    					.replace(/(?:injectHTML\(\')([\s\S]*?)(?:\'\);)/gim, fixQuotesAndRemoveLineBreaks);
+    				// After reading the content of the file we do a simple copy in versions directory.
+    				fs.writeFile(sFilePath, data1, 'utf8', function(err){
+    					if(err){
+    						throw err;
+    					}
+    					nSavedFiles++;
+    					if(nSavedFiles === nLenFiles)
+    					{
+    						console.log('There were ' + nReplacements + ' DOC comments replaced. Thanks for your time.');
+    					}
+    				});
+    			});
+    		})(sRootPath + "/" + aTestFiles[nFile]);
+    	}
+
+
+    });
+}
